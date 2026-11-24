@@ -1,9 +1,9 @@
-[package]
+﻿[package]
 name = "kcu-janelas"
 version = "0.1.0"
 edition = "2021"
 description = "Mostra a janela de uma app do Windows numa pagina web, com rato, teclado e toque."
-license = "MIT"
+license = "PolyForm-Noncommercial-1.0.0"
 
 [dependencies]
 axum = { version = "0.7", features = ["ws"] }

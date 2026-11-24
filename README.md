@@ -92,10 +92,42 @@ A config fica ao lado do `.exe`, ou no caminho da variável de ambiente `KCU_JAN
 - Apps feitas em Electron ou WebView2 arrancam com opções que as impedem de parar de desenhar quando ficam tapadas por outra janela.
 - O teclado e o rato chegam à app trazendo a janela dela para a frente. Com duas pessoas a usar apps diferentes ao mesmo tempo, as duas disputam a janela da frente.
 
+## Episódios
+
+A série no YouTube mostra a ferramenta a ser usada e melhorada sem cortes. Cada episódio tem uma versão do código (`ep01`, `ep02`…) para veres exatamente o que apareceu no vídeo.
+
+| Ep. | Vídeo | Código | O que mudou |
+|---|---|---|---|
+| 00 | *em breve* | [ep00](../../tree/ep00) | Primeira versão pública |
+
+O que mudou em cada versão está no [CHANGELOG](CHANGELOG.md).
+
+## FAQ
+
+**Funciona em Mac ou Linux?**
+Não. O PC que partilha a app tem de ser Windows 10/11. Do lado de quem vê, serve qualquer browser moderno (telemóvel incluído).
+
+**Preciso de placa NVIDIA?**
+Não. Sem ela o vídeo vai em JPEG: funciona, mas com menos fluidez.
+
+**Posso abrir isto à internet?**
+Não deves. Usa uma rede privada como o Tailscale. Quem entra controla a app como se estivesse sentado ao PC.
+
+**A app abre sem janela.**
+O programa está a correr fora da tua sessão do Windows (como serviço ou por SSH). Usa a tarefa agendada *Interactive* do passo 4.
+
+**A câmara não aparece na app.**
+Liga a câmara na página **antes** de escolheres a "OBS Virtual Camera" na app.
+
+**Tenho uma ideia ou uma pergunta.**
+Vai às [Discussions](https://github.com/orgs/KCUServices/discussions). As ideias que entram aparecem no CHANGELOG com o teu nome.
+
 ## Mais da KCU Services
 
 Outros projetos e produtos em [github.com/KCUServices](https://github.com/KCUServices).
 
 ## Licença
 
-MIT. Ver [LICENSE](LICENSE).
+[PolyForm Noncommercial 1.0.0](LICENSE): podes usar, estudar, alterar e partilhar **para uso pessoal e sem fins comerciais**. Vender, revender ou usar isto num negócio precisa de autorização: fala connosco no Instagram [@kcu.services](https://www.instagram.com/kcu.services).
+
+*Free for personal, noncommercial use. Selling or commercial use requires permission from KCU Services.*
