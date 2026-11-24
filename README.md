@@ -39,6 +39,26 @@ flowchart LR
 
 Cada página mostra **uma** app. Fechas o separador e a app fecha sozinha passados uns segundos.
 
+## Como o usamos
+
+Na nossa [página inicial](https://github.com/KCUServices/kcu-stack/blob/main/docs/apps.md) há um grupo "Apps do PC" com um cartão por app. Um toque no telemóvel e a app abre no PC de trabalho e aparece no ecrã do telemóvel.
+
+```mermaid
+flowchart LR
+    home["🏠 Homepage<br/>grupo Apps do PC"] --> kj["🪟 KCU Window"]
+    kj --> ecra["🖥️ Ecrã do PC<br/>o monitor todo, com som"]
+    kj --> dev["💻 Programar<br/>Zed · OpenCode · Antigravity<br/>Freebuff · Alethe"]
+    kj --> cria["🎨 Criar<br/>Voice Studio · Kdenlive · ArtCraft"]
+    kj --> ia["🤖 IA<br/>LM Studio"]
+    kj --> notas["📝 Notas<br/>Obsidian"]
+```
+
+- **[Zed](https://zed.dev), [OpenCode](https://opencode.ai), [Antigravity](https://antigravity.google), [Freebuff](https://github.com/CodebuffAI/freebuff) e [Alethe](https://github.com/Kc1t/alethe-agents):** programar e falar com agentes a partir do sofá.
+- **[Voice Studio](https://github.com/debpalash/VoiceStudio), [Kdenlive](https://kdenlive.org) e [ArtCraft](https://github.com/storytold/artcraft):** vozes, edição e imagem com IA.
+- **[LM Studio](https://lmstudio.ai):** experimentar modelos locais.
+- **[Obsidian](https://obsidian.md):** as notas.
+- **Ecrã do PC (`/?app=ecra`):** o monitor principal inteiro, quando é preciso mais do que uma app. Fica ao lado do [Chrome Remote Desktop](https://remotedesktop.google.com), que usamos só quando é mesmo preciso.
+
 ## O que faz
 
 - **Uma app por página.** Cada app tem o seu endereço (`/?app=obsidian`). Podes ter várias abertas ao mesmo tempo, e cada página mostra sempre a sua app, mesmo quando outra está à frente no PC.
