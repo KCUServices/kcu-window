@@ -1,5 +1,7 @@
 # KCU Window
 
+[![Verificar](https://github.com/KCUServices/kcu-window/actions/workflows/verificar.yml/badge.svg)](https://github.com/KCUServices/kcu-window/actions/workflows/verificar.yml)
+
 > **Isto é uma ideia, não um produto.** É a forma como nós abrimos as apps do nosso PC no telemóvel. Está aqui de graça para quem quiser pegar e adaptar ao seu. Sem suporte e sem garantias.
 >
 > *This is an idea, not a product: how we do it at home, free for anyone to take and adapt. No support, no warranty.*
