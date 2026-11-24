@@ -79,7 +79,9 @@ flowchart LR
 
 ## Instalar
 
-O programa chama-se `kcu-janelas.exe` (o nome original, em português).
+**O mais fácil:** descarrega o `.exe` pronto na [última versão](https://github.com/KCUServices/kcu-window/releases/latest), extrai o zip e segue o `LEIA-ME.txt`. O `.exe` não está assinado, por isso o Windows SmartScreen pode avisar: *Mais informações* → *Executar mesmo assim*.
+
+**Ou compila tu.** O programa chama-se `kcu-janelas.exe` (o nome original, em português).
 
 ```powershell
 git clone https://github.com/KCUServices/kcu-window
