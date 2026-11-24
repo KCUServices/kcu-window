@@ -8,6 +8,37 @@ Abre **uma app do teu PC Windows no browser**, sem ambiente de trabalho remoto: 
 
 *Open **a single Windows app in the browser**, without a full remote desktop: the page streams only that app's window and sends mouse, keyboard and touch back to it. (Interface in Portuguese.)*
 
+## Como funciona
+
+```mermaid
+flowchart LR
+    subgraph aparelho["📱 Telemóvel ou portátil"]
+        pag["Página no browser<br/>vídeo · rato · teclado · toque"]
+        cam["Câmara e microfone"]
+    end
+
+    vpn{{"🔐 Proxy HTTPS<br/>(ex.: Tailscale)"}}
+
+    subgraph pc["💻 PC Windows"]
+        kj["kcu-janelas.exe<br/>só escuta em 127.0.0.1"]
+        app["A app<br/>(Obsidian, Voice Studio…)"]
+        obs["OBS Virtual Camera"]
+        cabo["Cabo de áudio virtual"]
+        pasta["📁 Transferências"]
+    end
+
+    pag <-- "WebSocket com chave" --> vpn
+    vpn <--> kj
+    kj -- "abre e fecha" --> app
+    app -- "imagem da janela (H.264 ou JPEG)<br/>e som" --> kj
+    kj -- "cliques e teclas" --> app
+    cam -- "câmara" --> kj --> obs --> app
+    cam -- "microfone" --> kj --> cabo --> app
+    pag -. "ficheiros" .-> kj -.-> pasta
+```
+
+Cada página mostra **uma** app. Fechas o separador e a app fecha sozinha passados uns segundos.
+
 ## O que faz
 
 - **Uma app por página.** Cada app tem o seu endereço (`/?app=obsidian`). Podes ter várias abertas ao mesmo tempo, e cada página mostra sempre a sua app, mesmo quando outra está à frente no PC.
