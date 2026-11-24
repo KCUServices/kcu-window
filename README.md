@@ -10,6 +10,10 @@ Abre **uma app do teu PC Windows no browser**, sem ambiente de trabalho remoto: 
 
 *Open **a single Windows app in the browser**, without a full remote desktop: the page streams only that app's window and sends mouse, keyboard and touch back to it. (Interface in Portuguese.)*
 
+![O Voice Studio do PC aberto no browser pelo KCU Window: só a janela da app, com a barra do KCU Window por cima (som, microfone, câmara, ficheiros, teclado)](img/kcu-window-voicestudio.webp)
+
+*O Voice Studio do PC, aberto no browser pelo KCU Window. Em cima, a barra do KCU Window: início, som, microfone, câmara, ficheiros, colar, teclado e definições.*
+
 ## Como funciona
 
 ```mermaid
