@@ -162,3 +162,5 @@ Outros projetos e produtos em [github.com/KCUServices](https://github.com/KCUSer
 [PolyForm Noncommercial 1.0.0](LICENSE): podes usar, estudar, alterar e partilhar **para uso pessoal e sem fins comerciais**. Vender, revender ou usar isto num negócio precisa de autorização: fala connosco no Instagram [@kcu.services](https://www.instagram.com/kcu.services).
 
 *Free for personal, noncommercial use. Selling or commercial use requires permission from KCU Services.*
+
+**Marca e imagens:** o nome KCU, os logótipos e as imagens dos produtos são da KCU Services, com todos os direitos reservados. A licença cobre só o código e a documentação. Ver [MARCA.md](MARCA.md).
