@@ -431,6 +431,59 @@ fn diagnostico(processo: &str) {
     }
 }
 
+/// Como `cada`, mas so para janelas principais INVISIVEIS (app escondida na bandeja).
+/// Ignora janelas de servico (IME, icone da bandeja, energia, crashpad...) e as pequenas.
+unsafe extern "system" fn cada_escondida(h: HWND, l: LPARAM) -> BOOL {
+    let b = &mut *(l.0 as *mut Busca);
+    let mut pid = 0u32;
+    GetWindowThreadProcessId(h, Some(&mut pid));
+    if !b.pids.contains(&pid) || IsWindowVisible(h).as_bool() || GetWindow(h, GW_OWNER).map(|o| !o.0.is_null()).unwrap_or(false) {
+        return TRUE;
+    }
+    let mut c = [0u16; 80];
+    let nc = GetClassNameW(h, &mut c);
+    let classe = String::from_utf16_lossy(&c[..nc.max(0) as usize]);
+    let cl = classe.to_lowercase();
+    if ["ime", "notify", "power", "message", "tooltip", "crashpad", "systempreferences"].iter().any(|x| cl.contains(x)) {
+        return TRUE;
+    }
+    if GetWindowTextLengthW(h) == 0 && classe != "Chrome_WidgetWin_1" {
+        return TRUE;
+    }
+    let mut r = RECT::default();
+    if GetWindowRect(h, &mut r).is_ok() {
+        let (w, a) = (r.right - r.left, r.bottom - r.top);
+        // minimizada fica com um tamanho minusculo: aceita-se, mas so se nao houver melhor
+        if IsIconic(h).as_bool() && b.melhor == 0 {
+            b.melhor = h.0 as isize;
+        } else if w >= 300 && a >= 200 && (w as i64) * (a as i64) > b.area {
+            b.area = (w as i64) * (a as i64);
+            b.melhor = h.0 as isize;
+        }
+    }
+    TRUE
+}
+
+/// App a correr escondida na bandeja (ex.: LM Studio, VoiceStudio): a janela principal existe
+/// mas esta invisivel. Mostra-a e poe-na a frente; devolve-a (0 se nao houver nenhuma).
+fn mostrar_escondida(processo: &str) -> isize {
+    let pids = pids_de(processo);
+    if pids.is_empty() {
+        return 0;
+    }
+    let mut b = Busca { pids, melhor: 0, area: -1 };
+    unsafe {
+        let _ = EnumWindows(Some(cada_escondida), LPARAM(&mut b as *mut Busca as isize));
+        if b.melhor != 0 {
+            let h = hwnd(b.melhor);
+            let _ = ShowWindow(h, SW_SHOW);
+            let _ = ShowWindow(h, SW_RESTORE);
+            frente(h);
+        }
+    }
+    b.melhor
+}
+
 // ---------------------------------------------------------------- fechar a app quando se sai da pagina
 // Fechar o separador fecha a app no PC. Espera FECHO_APOS sem
 // nenhuma pagina dessa app aberta (recarregar, rede a falhar ou telemovel bloqueado nao fecham nada)
@@ -2328,6 +2381,12 @@ async fn sessao(s: WebSocket, a: App, largura: u32, qualidade: u8, video: Option
                     if !diag_feito && inicio.elapsed() > Duration::from_secs(6) {
                         diagnostico(&a2.processo);
                         diag_feito = true;
+                    }
+                    // a janela existe mas esta invisivel (bandeja): mostra-la; a proxima volta encontra-a
+                    if !ja_vista && inicio.elapsed() > Duration::from_secs(6) && inicio.elapsed() < Duration::from_secs(45)
+                        && mostrar_escondida(&a2.processo) != 0
+                    {
+                        nota(&format!("{} escondida na bandeja: mostrei a janela dela", a2.nome));
                     }
                     if tx.blocking_send(Saida::Texto(format!("{{\"estado\":\"{msg}\"}}"))).is_err() {
                         break;
