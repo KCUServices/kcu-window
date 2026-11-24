@@ -1,0 +1,5 @@
+/target
+kcu-janelas.json
+*.log
+kcu-janelas-icones/
+*.antes-*

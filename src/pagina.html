@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0d0e12">
+<title>__NOME__</title>
+<link rel="icon" href="/icone?app=__ID__">
+<style>
+  :root{--c:#7F77DD;--vidro:rgba(24,25,33,.72);--linha:rgba(255,255,255,.09);--txt:#e6e6ee;--fraco:#8d8d9a}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;color:var(--txt);font-family:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;overflow:hidden;background:#0d0e12}
+  #fundo{position:fixed;inset:0;transition:background .5s}
+  body[data-fundo=aurora] #fundo{background:
+    radial-gradient(60% 70% at 12% 8%,color-mix(in srgb,var(--c) 42%,transparent),transparent 70%),
+    radial-gradient(50% 60% at 92% 95%,color-mix(in srgb,var(--c) 28%,transparent),transparent 70%),
+    radial-gradient(40% 40% at 70% 20%,color-mix(in srgb,var(--c) 12%,transparent),transparent 70%),#0d0e12}
+  body[data-fundo=liso] #fundo{background:color-mix(in srgb,var(--c) 10%,#16171d)}
+  body[data-fundo=preto] #fundo{background:#000}
+  #barra{position:fixed;top:10px;left:10px;right:10px;height:50px;display:flex;align-items:center;gap:8px;padding:0 8px 0 7px;
+    background:var(--vidro);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);
+    border:1px solid var(--linha);border-radius:16px;z-index:3;transition:transform .3s,opacity .3s;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  body.semBarra #barra{transform:translateY(-80px);opacity:0;pointer-events:none}
+  #ico{width:36px;height:36px;border-radius:10px;padding:4px;background:color-mix(in srgb,var(--c) 22%,rgba(255,255,255,.05));flex:none;object-fit:contain}
+  #tit{min-width:0;margin-right:auto;line-height:1.25}
+  #tit b{display:block;color:#fff;font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #sub{font-size:11.5px;color:var(--fraco);display:flex;align-items:center;gap:6px;white-space:nowrap}
+  #luz{width:7px;height:7px;border-radius:50%;background:#666;flex:none;transition:background .3s}
+  #luz.ok{background:#3ccf8e;box-shadow:0 0 0 3px rgba(60,207,142,.18)}
+  #luz.mal{background:#ef5f5f}
+  #fps{font-variant-numeric:tabular-nums;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.07);color:#cfd;white-space:nowrap;flex:none;display:none}
+  body.verFps #fps.tem{display:block}
+  #fps.bom{color:#6ee7a8;background:rgba(60,207,142,.13)} #fps.medio{color:#f5c26b;background:rgba(239,159,39,.13)} #fps.baixo{color:#ff8a8a;background:rgba(239,95,95,.14)}
+  .b{height:34px;min-width:34px;border:0;border-radius:10px;background:rgba(255,255,255,.07);color:var(--txt);display:flex;align-items:center;justify-content:center;gap:6px;padding:0 9px;cursor:pointer;font:inherit;font-size:13px;flex:none;transition:background .15s,transform .1s}
+  .b:hover{background:rgba(255,255,255,.13)} .b:active{transform:scale(.96)}
+  .b svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .b.ac{background:var(--c);color:#fff}
+  #bAlvo{display:none;background:var(--c);color:#fff}
+  @media (max-width:640px){.so-pc{display:none!important} #barra{gap:6px} .b{min-width:32px;padding:0 7px}}
+  #tela{position:absolute;left:0;right:0;bottom:0;top:70px;width:100%;height:calc(100% - 70px);touch-action:none;outline:none;cursor:default;z-index:1;transition:top .3s,height .3s}
+  body.semBarra #tela{top:0;height:100%}
+  #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:var(--fraco);z-index:2;display:flex;flex-direction:column;align-items:center;gap:16px;font-size:14px}
+  #msg img{width:84px;height:84px;animation:resp 1.8s ease-in-out infinite}
+  @keyframes resp{50%{transform:scale(1.07);filter:drop-shadow(0 0 18px var(--c))}}
+  #msg button{font:inherit;font-size:14px;padding:9px 16px;border:0;border-radius:10px;background:var(--c);color:#fff;cursor:pointer}
+  #escrita{position:fixed;left:-1000px;top:0;width:10px;height:10px;opacity:0}
+  /* painel de definicoes */
+  #painel{position:fixed;top:0;right:0;bottom:0;width:290px;max-width:88vw;z-index:5;padding:18px 16px;overflow-y:auto;
+    background:rgba(20,21,28,.86);backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);
+    border-left:1px solid var(--linha);transform:translateX(100%);transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+  body.painel #painel{transform:none}
+  /* painel de ficheiros (mesmo estilo) */
+  #fich{position:fixed;top:0;right:0;bottom:0;width:330px;max-width:92vw;z-index:7;padding:18px 16px;overflow-y:auto;
+    background:rgba(20,21,28,.9);backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);
+    border-left:1px solid var(--linha);transform:translateX(100%);transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+  body.fich #fich{transform:none}
+  #fich h3{margin:0 0 14px;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+  .fl{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;color:var(--txt);font:inherit;text-align:left;padding:8px 6px;border-radius:9px;cursor:pointer}
+  .fl:hover{background:rgba(255,255,255,.07)}
+  .fl svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+  .fl .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
+  .fl .t{font-size:11px;color:var(--fraco);flex:none;text-align:right;line-height:1.35}
+  #largar{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;
+    background:rgba(10,11,16,.78);border:3px dashed var(--c);border-radius:18px;margin:10px;color:#fff;font-size:18px;pointer-events:none}
+  #largar.ver{display:flex}
+  #largar svg{width:56px;height:56px;stroke:var(--c);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  #pega{position:fixed;top:50%;right:0;width:20px;height:64px;margin-top:-32px;border-radius:10px 0 0 10px;background:var(--c);z-index:6;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:right .32s cubic-bezier(.2,.8,.2,1);opacity:.85}
+  #pega:hover{opacity:1}
+  #pega svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.4;transition:transform .3s}
+  body.painel #pega{right:min(290px,88vw)} body.painel #pega svg{transform:rotate(180deg)}
+  #painel h3{margin:0 0 18px;font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+  #painel h3 img{width:26px;height:26px}
+  .sec{margin-bottom:18px}
+  .sec>p{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--fraco)}
+  .cores{display:flex;flex-wrap:wrap;gap:9px}
+  .cor{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15);position:relative}
+  .cor.sel{border-color:#fff}
+  .cor.auto{background-size:cover;background-position:center;background-color:#2a2b33}
+  .seg{display:flex;background:rgba(255,255,255,.06);border-radius:10px;padding:3px;gap:2px}
+  .seg button{flex:1;border:0;background:none;color:#b4b4c0;padding:7px 0;border-radius:8px;cursor:pointer;font:inherit;font-size:12.5px}
+  .seg button.sel{background:var(--c);color:#fff}
+  .lin{display:flex;align-items:center;justify-content:space-between;padding:7px 0;font-size:13.5px}
+  .sw{width:36px;height:21px;border-radius:11px;background:#3a3b46;position:relative;cursor:pointer;transition:background .2s;flex:none}
+  .sw::after{content:"";position:absolute;width:15px;height:15px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left .2s}
+  .sw.on{background:var(--c)} .sw.on::after{left:18px}
+  .acoes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .acoes .b{height:38px;justify-content:flex-start}
+  #bMic.ativo{background:#e5484d;color:#fff;animation:micPulso 1.6s ease-in-out infinite}
+  @keyframes micPulso{50%{box-shadow:0 0 0 4px rgba(229,72,77,.3)}}
+  #bCam.ativo{background:#e5484d;color:#fff;animation:micPulso 1.6s ease-in-out infinite}
+  #camVer{position:fixed;right:14px;bottom:14px;width:150px;max-width:32vw;border-radius:12px;z-index:5;background:#000;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;cursor:pointer;object-fit:cover;aspect-ratio:16/9}
+  #camVer.espelho{transform:scaleX(-1)}
+  #toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:6;background:rgba(20,21,27,.94);color:#fff;font-size:13px;padding:10px 14px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.45);transition:opacity .2s,transform .2s;display:flex;gap:10px;align-items:center;max-width:90vw}
+  #toast.ver{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+  #toast button{border:0;border-radius:8px;background:var(--c);color:#fff;font:inherit;padding:6px 10px;cursor:pointer}
+  #bSom .off{display:none} #bSom.mudo .off{display:inline} #bSom.mudo .on{display:none} #bSom.mudo{opacity:.55}
+  .nota{font-size:11.5px;color:var(--fraco);line-height:1.5;margin-top:6px}
+</style>
+</head>
+<body data-fundo="aurora">
+<div id="fundo"></div>
+<div id="barra">
+  <img id="ico" src="/icone?app=__ID__" alt="">
+  <div id="tit"><b>__NOME__</b><div id="sub"><span id="luz"></span><span id="estado">a ligar…</span></div></div>
+  <span id="fps"></span>
+  <button class="b" id="bAlvo" title="Alternar entre a app e o browser do login"></button>
+  <button class="b so-pc" id="bCasa" title="Ir para o início"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg></button>
+  <button class="b" id="bSom" title="Som da app"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="off" d="M17 9l5 6M22 9l-5 6"/></svg></button>
+  <button class="b" id="bMic" title="Microfone: desligado" style="display:none"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
+  <button class="b" id="bCam" title="Câmara: desligada" style="display:none"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3"/></svg></button>
+  <button class="b" id="bFich" title="Ficheiros: enviar para o PC ou trazer de lá"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9.5 13.5 12 16l2.5-2.5"/></svg></button>
+  <button class="b" id="bColar" title="Colar aqui o texto copiado neste aparelho"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/></svg></button>
+  <button class="b" id="bTeclado" title="Teclado (telemóvel)"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
+  <button class="b" id="bDef" title="Definições"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+</div>
+<canvas id="tela" tabindex="0"></canvas>
+<video id="camVer" muted playsinline autoplay title="Tocar para trocar de câmara"></video>
+<div id="msg"><img src="/icone?app=__ID__" alt=""><span id="msgT">A ligar ao PC…</span></div>
+<button class="b" id="bZoom" title="Voltar ao tamanho normal" style="display:none;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:4;height:40px;padding:0 16px;background:var(--c);color:#fff;border-radius:20px;box-shadow:0 6px 20px rgba(0,0,0,.4)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M8 11h6M20 20l-4.5-4.5"/></svg>Tamanho normal</button>
+<div id="pega" title="Definições"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></div>
+<aside id="fich">
+  <h3>Ficheiros <button class="b" id="fichFechar" title="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3>
+  <div class="sec"><p>Deste aparelho para o PC</p>
+    <button class="b" id="bEnviar" style="width:100%;height:40px;background:var(--c);color:#fff"><svg viewBox="0 0 24 24"><path d="M12 16V4M7.5 8.5 12 4l4.5 4.5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>Enviar ficheiros</button>
+    <input type="file" id="fichEscolher" multiple style="display:none">
+    <div class="nota">Ou arrasta ficheiros para cima da página. Ficam nas Transferências do PC.</div></div>
+  <div class="sec"><p style="display:flex;justify-content:space-between;align-items:center">Do PC para este aparelho <button class="b" id="fichAtualizar" title="Atualizar" style="height:26px;min-width:26px;padding:0 5px"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button></p>
+    <div id="fichLista"></div></div>
+</aside>
+<div id="largar"><svg viewBox="0 0 24 24"><path d="M12 16V4M7.5 8.5 12 4l4.5 4.5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>Larga para enviar para as Transferências do PC</div>
+<aside id="painel">
+  <h3><img src="/icone?app=__ID__" alt="">Definições</h3>
+  <div class="sec"><p>Cor de destaque</p><div class="cores" id="cores"></div></div>
+  <div class="sec"><p>Fundo</p><div class="seg" id="sFundo"><button data-v="aurora">Aurora</button><button data-v="liso">Liso</button><button data-v="preto">Preto</button></div></div>
+  <div class="sec"><p>Janela da app</p><div class="seg" id="sAjuste"><button data-v="ajustar">Ajustar</button><button data-v="encher">Encher</button><button data-v="real">Tamanho real</button></div></div>
+  <div class="sec"><p>Qualidade da imagem</p><div class="seg" id="sQual"><button data-v="auto">Auto</button><button data-v="hd">Máxima</button><button data-v="leve">Leve</button></div>
+    <div class="nota">Leve gasta menos dados (rede móvel).</div></div>
+  <div class="sec"><p>Mostrar</p>
+    <div class="lin">Som da app<div class="sw" data-k="som"></div></div>
+    <div class="lin">Barra de cima<div class="sw" data-k="barra"></div></div>
+    <div class="lin">Contador de FPS<div class="sw" data-k="fps"></div></div>
+    <div class="lin">Cantos redondos<div class="sw" data-k="cantos"></div></div>
+    <div class="lin">Margem à volta da app<div class="sw" data-k="margem"></div></div>
+  </div>
+  <div class="sec"><p>Ações no PC</p><div class="acoes">
+    <button class="b" id="bAjustar"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Ajustar</button>
+    <button class="b" id="bMax"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>Maximizar</button>
+    <button class="b" id="bRelig"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>Religar</button>
+    <button class="b" id="bCasa2"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Início</button>
+  </div><div class="nota">Ajustar põe a janela no PC do tamanho deste ecrã.</div></div>
+</aside>
+<div id="toast"></div>
+<textarea id="escrita" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+<script>
+const APP = __APP__;
+const NOME = document.title;
+const HOMEPAGE = __INICIO__; // config "inicio"; null = sem botao Inicio
+const $ = (i) => document.getElementById(i);
+const bAlvo = $('bAlvo');
+let modo = 'app';
+bAlvo.onclick = () => mandar({t: 'alvo', a: modo === 'browser' ? 'app' : 'browser'});
+const chave = new URLSearchParams(location.hash.slice(1)).get('t') || sessionStorage.getItem('kj-' + APP) || '';
+if (chave) { sessionStorage.setItem('kj-' + APP, chave); history.replaceState(null, '', location.pathname + location.search); }
+const tela = $('tela'), ctx = tela.getContext('2d');
+const msg = $('msg'), msgT = $('msgT'), estado = $('estado'), luz = $('luz'), fpsEl = $('fps');
+const escrita = $('escrita');
+const movel = matchMedia('(pointer:coarse)').matches;
+let ws, img = null, area = {x:0,y:0,w:1,h:1}, fotos = 0, ultimaFps = performance.now();
+function aviso(t) { msgT.innerHTML = t; msg.style.display = 'flex'; }
+
+// ---- definicoes (guardadas neste aparelho)
+const CORES = ['auto', '#7F77DD', '#3C8DFF', '#1DB98A', '#F0643C', '#E0508C', '#F2A52B', '#9AA0AE'];
+const PADRAO = {cor: 'auto', fundo: 'aurora', ajuste: 'ajustar', qual: 'auto', som: true, barra: true, fps: true, cantos: true, margem: !movel};
+let def = Object.assign({}, PADRAO, JSON.parse(localStorage.getItem('kj-defs') || '{}'));
+let corAuto = '#7F77DD';
+function guardar() { localStorage.setItem('kj-defs', JSON.stringify(def)); }
+function aplicar() {
+  const c = def.cor === 'auto' ? corAuto : def.cor;
+  document.documentElement.style.setProperty('--c', c);
+  document.querySelector('meta[name=theme-color]').content = def.fundo === 'preto' ? '#000' : '#0d0e12';
+  document.body.dataset.fundo = def.fundo;
+  document.body.classList.toggle('semBarra', !def.barra);
+  document.body.classList.toggle('verFps', def.fps);
+  document.querySelectorAll('.cor').forEach((e) => e.classList.toggle('sel', e.dataset.v === def.cor));
+  for (const [id, k] of [['sFundo', 'fundo'], ['sAjuste', 'ajuste'], ['sQual', 'qual']])
+    $(id).querySelectorAll('button').forEach((b) => b.classList.toggle('sel', b.dataset.v === def[k]));
+  document.querySelectorAll('.sw').forEach((s) => s.classList.toggle('on', !!def[s.dataset.k]));
+  setTimeout(desenhar, 320); desenhar();
+  if (typeof atualizarSom === 'function') atualizarSom();
+}
+CORES.forEach((c) => {
+  const d = document.createElement('div');
+  d.className = 'cor' + (c === 'auto' ? ' auto' : ''); d.dataset.v = c;
+  if (c === 'auto') { d.style.backgroundImage = 'url(/icone?app=' + encodeURIComponent(APP) + ')'; d.title = 'Cor da app'; } else d.style.background = c;
+  d.onclick = () => { def.cor = c; guardar(); aplicar(); };
+  $('cores').appendChild(d);
+});
+for (const [id, k] of [['sFundo', 'fundo'], ['sAjuste', 'ajuste'], ['sQual', 'qual']])
+  $(id).querySelectorAll('button').forEach((b) => b.onclick = () => {
+    const mudouQual = k === 'qual' && def.qual !== b.dataset.v;
+    def[k] = b.dataset.v; guardar(); aplicar();
+    if (mudouQual) religar();
+  });
+document.querySelectorAll('.sw').forEach((s) => s.onclick = () => { def[s.dataset.k] = !def[s.dataset.k]; guardar(); aplicar(); });
+const abrirPainel = () => { document.body.classList.toggle('painel'); };
+$('pega').onclick = abrirPainel; $('bDef').onclick = abrirPainel;
+tela.addEventListener('pointerdown', () => document.body.classList.remove('painel'), true);
+$('bCasa').onclick = $('bCasa2').onclick = () => { location.href = HOMEPAGE; };
+if (!HOMEPAGE) { $('bCasa').style.display = 'none'; $('bCasa2').style.display = 'none'; }
+$('bRelig').onclick = () => religar();
+// cor automatica = a cor mais viva do icone da app
+(function () {
+  const i = new Image();
+  i.onload = () => {
+    const c = document.createElement('canvas'); c.width = c.height = 48;
+    const x = c.getContext('2d'); x.drawImage(i, 0, 0, 48, 48);
+    const d = x.getImageData(0, 0, 48, 48).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let p = 0; p < d.length; p += 4) {
+      if (d[p + 3] < 200) continue;
+      const mx = Math.max(d[p], d[p + 1], d[p + 2]), mn = Math.min(d[p], d[p + 1], d[p + 2]);
+      const s = mx - mn; if (s < 40 || mx < 60) continue;
+      r += d[p] * s; g += d[p + 1] * s; b += d[p + 2] * s; n += s;
+    }
+    if (n) corAuto = '#' + [r, g, b].map((v) => Math.round(v / n).toString(16).padStart(2, '0')).join('');
+    aplicar();
+  };
+  i.src = '/icone?app=' + encodeURIComponent(APP);
+})();
+
+// ---- video H.264 (placa NVIDIA do PC) descodificado com WebCodecs; sem suporte, JPEG
+let h264ok = false, videoModo = 'jpeg', dec = null, esperaChave = true, ts = 0;
+async function suporteH264() {
+  if (!('VideoDecoder' in window) || !('EncodedVideoChunk' in window)) return false;
+  try { return (await VideoDecoder.isConfigSupported({codec: 'avc1.640033', optimizeForLatency: true})).supported; }
+  catch (e) { return false; }
+}
+function contar() {
+  fotos++;
+  const t = performance.now();
+  if (t - ultimaFps > 1000) {
+    const f = Math.round(fotos * 1000 / (t - ultimaFps));
+    fpsEl.textContent = f + ' FPS' + (videoModo === 'h264' ? ' · HD' : '');
+    fpsEl.className = 'tem ' + (f >= 45 ? 'bom' : f >= 20 ? 'medio' : 'baixo');
+    fotos = 0; ultimaFps = t;
+  }
+}
+// sem imagens novas (app parada) o contador desce sozinho
+setInterval(() => { if (performance.now() - ultimaFps > 2500 && img) { fpsEl.textContent = 'parado'; fpsEl.className = 'tem'; } }, 1000);
+function novoDec() {
+  if (dec) { try { dec.close(); } catch (e) {} }
+  dec = new VideoDecoder({
+    output: (f) => { if (img && img.close) img.close(); img = f; msg.style.display = 'none'; desenhar(); contar(); },
+    error: (e) => { console.warn('descodificador', e); setTimeout(() => { novoDec(); mandar({t: 'key'}); }, 50); },
+  });
+  dec.configure({codec: 'avc1.640033', optimizeForLatency: true});
+  esperaChave = true;
+}
+// se o browser nao der conta (fila a crescer = atraso), deita-se a fila fora, pede-se uma imagem
+// completa e menos imagens por segundo; com folga, volta a subir
+let fpsAtual = 60, folga = 0;
+const NIVEIS = [60, 30, 20, 12];
+setInterval(() => {
+  if (!dec || videoModo !== 'h264' || dec.state !== 'configured') return;
+  if (dec.decodeQueueSize > 6) {
+    const i = NIVEIS.indexOf(fpsAtual);
+    if (i < NIVEIS.length - 1) { fpsAtual = NIVEIS[i + 1]; mandar({t: 'fps', d: fpsAtual}); }
+    try { dec.reset(); dec.configure({codec: 'avc1.640033', optimizeForLatency: true}); } catch (e) { novoDec(); }
+    esperaChave = true; mandar({t: 'key'}); folga = 0;
+  } else if (dec.decodeQueueSize <= 1) {
+    if (++folga >= 15 && fpsAtual < 60) { fpsAtual = NIVEIS[Math.max(0, NIVEIS.indexOf(fpsAtual) - 1)]; mandar({t: 'fps', d: fpsAtual}); folga = 0; }
+  } else { folga = 0; }
+}, 1000);
+// imagem completa (IDR) ou parametros (SPS): o descodificador pode comecar aqui
+function eChave(u8) {
+  for (let i = 0; i + 3 < u8.length; i++) {
+    if (u8[i] === 0 && u8[i + 1] === 0 && u8[i + 2] === 1) {
+      const t = u8[i + 3] & 0x1f;
+      if (t === 5 || t === 7) return true;
+      i += 2;
+    }
+  }
+  return false;
+}
+
+// ---- som da app: so o som DESTA app no PC (nao o do resto do PC). PCM 16 bits 48 kHz estereo,
+// mensagens binarias que comecam por 'A'. O browser so deixa tocar depois de um toque/clique.
+let actx = null, somAte = 0, somPedido = null;
+function somAtivar() {
+  if (!def.som) return;
+  try {
+    if (!actx) { const C = window.AudioContext || window.webkitAudioContext; try { actx = new C({sampleRate: 48000}); } catch (e) { actx = new C(); } }
+    if (actx.state === 'suspended') actx.resume();
+  } catch (e) { console.warn('som', e); }
+}
+addEventListener('pointerdown', somAtivar, true);
+addEventListener('keydown', somAtivar, true);
+function atualizarSom() {
+  const b = $('bSom');
+  b.classList.toggle('mudo', !def.som);
+  b.title = def.som ? 'Som da app: ligado (tocar para desligar)' : 'Som da app: desligado';
+  if (!def.som && actx && actx.state === 'running') actx.suspend();
+  if (ws && ws.readyState === 1 && somPedido !== def.som) { somPedido = def.som; mandar({t: 'som', d: def.som ? 1 : 0}); }
+}
+$('bSom').onclick = () => { def.som = !def.som; guardar(); aplicar(); somAtivar(); };
+function tocar(buf) {
+  if (!def.som || !actx || actx.state !== 'running') return;
+  const n = (buf.byteLength - 1) >> 2;
+  if (n <= 0) return;
+  const dv = new DataView(buf, 1);
+  const ab = actx.createBuffer(2, n, 48000);
+  const l = ab.getChannelData(0), r = ab.getChannelData(1);
+  for (let i = 0; i < n; i++) { l[i] = dv.getInt16(i * 4, true) / 32768; r[i] = dv.getInt16(i * 4 + 2, true) / 32768; }
+  const s = actx.createBufferSource(); s.buffer = ab; s.connect(actx.destination);
+  const agora = actx.currentTime;
+  // comeco (ou depois de silencio) e atraso acumulado: recomeca com 80 ms de folga
+  if (somAte < agora + 0.01 || somAte > agora + 0.4) somAte = agora + 0.08;
+  s.start(somAte); somAte += ab.duration;
+}
+
+let religando = false;
+function religar() { religando = true; if (ws) ws.close(); else ligar(); }
+function ligar() {
+  religando = false;
+  const dpr = devicePixelRatio || 1;
+  const larg = movel ? Math.round(Math.max(innerWidth, innerHeight) * dpr) : 0;
+  const Q = {auto: {q: movel ? 68 : 85, b: movel ? 6000 : 14000}, hd: {q: 92, b: 24000}, leve: {q: 55, b: 2500}}[def.qual] || {q: 80, b: 12000};
+  const u = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?app=' + encodeURIComponent(APP) +
+    '&t=' + encodeURIComponent(chave) + '&w=' + larg + '&q=' + Q.q +
+    (h264ok ? '&v=h264&b=' + Q.b : '');
+  ws = new WebSocket(u); ws.binaryType = 'arraybuffer';
+  ws.onopen = () => { estado.textContent = 'ligado'; luz.className = 'ok'; somPedido = null; atualizarSom(); };
+  ws.onmessage = async (e) => {
+    if (typeof e.data === 'string') {
+      const j = JSON.parse(e.data);
+      if (j.fechada) {
+        // a app foi fechada aqui pelo X: mostrar isso em vez da ultima imagem
+        if (img) { img.close(); img = null; } desenhar();
+        aviso('A app foi fechada no PC.<br><br><button onclick="location.reload()">Abrir outra vez</button>');
+        estado.textContent = 'fechada'; luz.className = 'mal'; fpsEl.className = '';
+        return;
+      }
+      if (j.video) { videoModo = j.video; if (videoModo === 'h264') novoDec(); }
+      if (typeof j.clip === 'string') copiarAqui(j.clip);
+      if ('microfone' in j) { bMic.style.display = j.microfone ? 'flex' : 'none'; if (!j.microfone) desligarMic(); }
+      if ('camara' in j) { bCam.style.display = j.camara ? 'flex' : 'none'; if (!j.camara) desligarCam(); }
+      if (j.camaraErro) { desligarCam(); mostrarToast(j.camaraErro, 6000); }
+      if (j.estado) { msgT.textContent = j.estado; msg.style.display = img ? 'none' : 'flex'; }
+      if (j.erro) aviso(j.erro);
+      if (j.modo) {
+        // login pelo browser: a app abriu o browser do PC; mostra-se aqui e fecha sozinho no fim
+        modo = j.modo;
+        bAlvo.style.display = (j.modo === 'browser' || j.login) ? 'flex' : 'none';
+        bAlvo.textContent = j.modo === 'browser' ? '← Voltar à app' : 'Ver browser (login)';
+        document.title = (j.modo === 'browser' ? 'Login · ' : '') + NOME;
+      }
+      return;
+    }
+    if (e.data.byteLength && new Uint8Array(e.data, 0, 1)[0] === 65) { tocar(e.data); return; } // 'A' = som
+    if (videoModo === 'h264' && dec) {
+      const u8 = new Uint8Array(e.data);
+      const chaveAqui = eChave(u8);
+      if (esperaChave && !chaveAqui) return;
+      esperaChave = false;
+      try { dec.decode(new EncodedVideoChunk({type: chaveAqui ? 'key' : 'delta', timestamp: (ts += 16667), data: u8})); }
+      catch (err) { console.warn(err); novoDec(); mandar({t: 'key'}); }
+      return;
+    }
+    const b = await createImageBitmap(new Blob([e.data]));
+    if (img) img.close();
+    img = b; msg.style.display = 'none'; desenhar(); contar();
+  };
+  ws.onclose = (e) => {
+    if (dec) { try { dec.close(); } catch (err) {} dec = null; }
+    if (religando) { ligar(); return; }
+    estado.textContent = 'desligado'; luz.className = 'mal'; fpsEl.className = '';
+    aviso(e.code === 1006 && !img ? 'Sem acesso ou PC desligado. A tentar de novo…' : 'Ligação perdida. A tentar de novo…');
+    setTimeout(ligar, 2500);
+  };
+}
+
+function desenhar() {
+  const dpr = devicePixelRatio || 1;
+  const W = tela.clientWidth, H = tela.clientHeight;
+  if (tela.width !== Math.round(W * dpr) || tela.height !== Math.round(H * dpr)) { tela.width = Math.round(W * dpr); tela.height = Math.round(H * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  if (!img) return;
+  const iw = img.displayWidth || img.width, ih = img.displayHeight || img.height;
+  const m = def.margem && def.ajuste === 'ajustar' ? 14 : 0;
+  const AW = W - m * 2, AH = H - m * 2;
+  let e = def.ajuste === 'encher' ? Math.max(AW / iw, AH / ih) : def.ajuste === 'real' ? 1 / (movel ? 1 : dpr) : Math.min(AW / iw, AH / ih);
+  if (def.ajuste === 'real' && movel) e = Math.min(AW / iw, AH / ih); // no telemovel "real" nao cabe: ajusta
+  const w0 = iw * e, h0 = ih * e;
+  const bx = m + (AW - w0) / 2, by = m + (AH - h0) / 2;
+  // zoom com dois dedos (telemovel): vista = base * zoom + desvio, sempre dentro do ecra
+  const w = w0 * zoom, h = h0 * zoom;
+  let x = bx * zoom + desvio.x, y = by * zoom + desvio.y;
+  if (w > W) x = Math.min(0, Math.max(W - w, x)); else x = (W - w) / 2;
+  if (h > H) y = Math.min(0, Math.max(H - h, y)); else y = (H - h) / 2;
+  desvio = {x: x - bx * zoom, y: y - by * zoom};
+  base = {x: bx, y: by};
+  area = {x, y, w, h};
+  bZoom.style.display = zoom > 1.01 ? 'flex' : 'none';
+  const r = def.cantos ? 12 : 0;
+  ctx.save();
+  if (r && ctx.roundRect) { ctx.beginPath(); ctx.roundRect(area.x, area.y, w, h, r); ctx.clip(); }
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, area.x, area.y, w, h);
+  ctx.restore();
+  if (m) { ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(area.x - .5, area.y - .5, w + 1, h + 1, r) : ctx.rect(area.x, area.y, w, h); ctx.stroke(); }
+}
+addEventListener('resize', desenhar);
+
+function mandar(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+function pos(ev) {
+  const r = tela.getBoundingClientRect();
+  return {x: (ev.clientX - r.left - area.x) / area.w, y: (ev.clientY - r.top - area.y) / area.h};
+}
+function dentro(p) { return p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1; }
+
+// ---- zoom com dois dedos (como no ambiente remoto): pincar aproxima, arrastar com dois dedos move
+let ultimaP = null;
+let zoom = 1, desvio = {x: 0, y: 0}, base = {x: 0, y: 0};
+const dedos = new Map();
+let pinca = null;
+const bZoom = $('bZoom');
+bZoom.onclick = () => { zoom = 1; desvio = {x: 0, y: 0}; desenhar(); };
+function ptLocal(ev) { const r = tela.getBoundingClientRect(); return {x: ev.clientX - r.left, y: ev.clientY - r.top}; }
+function iniciarPinca() {
+  const [a, b] = [...dedos.values()];
+  pinca = {d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: zoom, m: {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}, o: {...desvio}};
+}
+function moverPinca() {
+  const [a, b] = [...dedos.values()];
+  const d = Math.hypot(a.x - b.x, a.y - b.y) || 1, m = {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2};
+  const z = Math.min(6, Math.max(1, pinca.z * d / pinca.d));
+  // o ponto da app que estava debaixo dos dedos continua debaixo deles
+  const px = (pinca.m.x - pinca.o.x) / pinca.z, py = (pinca.m.y - pinca.o.y) / pinca.z;
+  zoom = z; desvio = {x: m.x - px * z, y: m.y - py * z};
+  desenhar();
+}
+function largarToque() {
+  // um segundo dedo chegou: o primeiro deixa de ser clique/arrastar
+  clearTimeout(toqueLongo); toqueLongo = null;
+  if (premido && !inicioToque && ultimaP) mandar({t:'m', a:'up', b:0, ...ultimaP});
+  premido = false; inicioToque = null;
+}
+tela.addEventListener('pointerdown', (ev) => {
+  if (ev.pointerType !== 'touch') return;
+  dedos.set(ev.pointerId, ptLocal(ev));
+  if (dedos.size === 2) { largarToque(); iniciarPinca(); ev.stopImmediatePropagation(); }
+  else if (dedos.size > 2) ev.stopImmediatePropagation();
+}, true);
+tela.addEventListener('pointermove', (ev) => {
+  if (!dedos.has(ev.pointerId)) return;
+  dedos.set(ev.pointerId, ptLocal(ev));
+  if (pinca && dedos.size >= 2) { moverPinca(); ev.stopImmediatePropagation(); }
+}, true);
+function fimDedo(ev) {
+  if (!dedos.has(ev.pointerId)) return;
+  dedos.delete(ev.pointerId);
+  if (pinca) { if (dedos.size < 2) pinca = null; if (dedos.size === 1) premido = false; ev.stopImmediatePropagation(); }
+}
+tela.addEventListener('pointerup', fimDedo, true);
+tela.addEventListener('pointercancel', fimDedo, true);
+
+// ---- rato e toque
+let premido = false, ultimoMov = 0, toqueLongo = null, inicioToque = null;
+// (ecra inteiro so no PC: a app abre maximizada la; o browser daqui fica como esta)
+tela.addEventListener('pointerdown', (ev) => {
+  tela.focus(); if (pinca) return; const p = pos(ev); if (!dentro(p)) return;
+  tela.setPointerCapture(ev.pointerId); premido = true;
+  if (ev.pointerType === 'touch') {
+    inicioToque = {p, t: Date.now()};
+    toqueLongo = setTimeout(() => { mandar({t:'m', a:'down', b:2, ...p}); mandar({t:'m', a:'up', b:2, ...p}); toqueLongo = 'feito'; }, 600);
+    mandar({t:'m', a:'move', ...p});
+    return;
+  }
+  mandar({t:'m', a:'down', b: ev.button === 2 ? 2 : ev.button === 1 ? 1 : 0, ...p});
+  ev.preventDefault();
+});
+tela.addEventListener('pointermove', (ev) => {
+  const t = performance.now(); if (t - ultimoMov < 25) return; ultimoMov = t;
+  const p = pos(ev); if (!dentro(p)) return;
+  ultimaP = p;
+  if (ev.pointerType === 'touch') {
+    if (!premido) return;
+    if (inicioToque && toqueLongo !== 'feito' && Math.hypot(p.x - inicioToque.p.x, p.y - inicioToque.p.y) > 0.01) {
+      clearTimeout(toqueLongo); toqueLongo = null;
+      if (inicioToque) { mandar({t:'m', a:'down', b:0, ...inicioToque.p}); inicioToque = null; } // arrastar
+    }
+  }
+  mandar({t:'m', a:'move', ...p});
+});
+function soltar(ev) {
+  if (!premido) return; premido = false;
+  const p = pos(ev);
+  if (ev.pointerType === 'touch') {
+    if (toqueLongo === 'feito') { toqueLongo = null; return; }
+    clearTimeout(toqueLongo); toqueLongo = null;
+    if (inicioToque) { mandar({t:'m', a:'down', b:0, ...inicioToque.p}); inicioToque = null; } // toque simples = clique
+    mandar({t:'m', a:'up', b:0, ...p}); return;
+  }
+  mandar({t:'m', a:'up', b: ev.button === 2 ? 2 : ev.button === 1 ? 1 : 0, ...p});
+}
+tela.addEventListener('pointerup', soltar);
+tela.addEventListener('pointercancel', soltar);
+tela.addEventListener('contextmenu', (ev) => ev.preventDefault());
+tela.addEventListener('wheel', (ev) => {
+  const p = pos(ev); if (!dentro(p)) return; ev.preventDefault();
+  if (Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) mandar({t:'m', a:'hwheel', d: Math.sign(ev.deltaX) * 120, ...p});
+  else mandar({t:'m', a:'wheel', d: -Math.sign(ev.deltaY) * 120, ...p});
+}, {passive: false});
+
+// ---- teclado (vale em toda a pagina, nao so quando a imagem tem o foco)
+const MAC = /Mac|iPhone|iPad/.test(navigator.platform || '');
+const VK = {Backspace:8,Tab:9,Enter:13,NumpadEnter:13,ShiftLeft:160,ShiftRight:161,ControlLeft:162,ControlRight:163,AltLeft:164,AltRight:165,
+  Pause:19,CapsLock:20,Escape:27,Space:32,PageUp:33,PageDown:34,End:35,Home:36,ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40,
+  PrintScreen:44,Insert:45,Delete:46,MetaLeft:91,MetaRight:92,ContextMenu:93,NumLock:144,ScrollLock:145,
+  Semicolon:186,Equal:187,Comma:188,Minus:189,Period:190,Slash:191,Backquote:192,BracketLeft:219,Backslash:220,BracketRight:221,Quote:222,IntlBackslash:226,
+  NumpadMultiply:106,NumpadAdd:107,NumpadSubtract:109,NumpadDecimal:110,NumpadDivide:111};
+for (let i = 0; i < 26; i++) VK['Key' + String.fromCharCode(65 + i)] = 65 + i;
+for (let i = 0; i < 10; i++) { VK['Digit' + i] = 48 + i; VK['Numpad' + i] = 96 + i; }
+for (let i = 1; i <= 12; i++) VK['F' + i] = 111 + i;
+const emVk = new Set();
+// teclas Cmd do Mac/iPad funcionam como Ctrl no PC (Cmd+C, Cmd+V, ...)
+function vkDe(code) { if (MAC && (code === 'MetaLeft' || code === 'MetaRight')) return 162; return VK[code]; }
+function paraNos(ev) {
+  // teclas escritas em caixas da propria pagina (teclado do telemovel, definicoes) nao vao para a app
+  const t = ev.target;
+  return !(t === escrita || (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)));
+}
+let colaPendente = null;
+function teclaDown(ev) {
+  if (!paraNos(ev) || ev.isComposing || ev.key === 'Process') return;
+  // acento (´ ` ~ ^ ¨): esperar pela letra seguinte, que ja vem composta (á, ã, ê...)
+  if (ev.key === 'Dead') { ev.preventDefault(); return; }
+  const ctrl = ev.ctrlKey || (MAC && ev.metaKey);
+  // colar: deixa o browser dar o evento 'paste' com o texto DESTE aparelho (ver abaixo)
+  if (ctrl && !ev.altKey && !ev.shiftKey && ev.code === 'KeyV') {
+    clearTimeout(colaPendente);
+    // sem evento 'paste' (texto vazio, browser sem suporte): Ctrl+V normal, cola o que esta no PC
+    colaPendente = setTimeout(() => { colaPendente = null; mandar({t:'k', a:'down', vk:162}); mandar({t:'k', a:'down', vk:86}); mandar({t:'k', a:'up', vk:86}); mandar({t:'k', a:'up', vk:162}); }, 300);
+    return;
+  }
+  // AltGr no Windows chega como Ctrl+Alt: o caracter (@, €, [, ...) vai tal e qual
+  const altgr = ev.getModifierState && ev.getModifierState('AltGraph');
+  const atalho = (ctrl || ev.altKey || (!MAC && ev.metaKey)) && !altgr;
+  if (!atalho && ev.key.length <= 2 && [...ev.key].length === 1) {
+    if (altgr) { for (const c of [...emVk]) if (/Control|Alt/.test(c)) { mandar({t:'k', a:'up', vk: vkDe(c)}); emVk.delete(c); } }
+    mandar({t:'c', s: ev.key}); ev.preventDefault(); return;
+  }
+  const vk = vkDe(ev.code); if (!vk) return;
+  ev.preventDefault(); emVk.add(ev.code); mandar({t:'k', a:'down', vk});
+}
+function teclaUp(ev) {
+  if (!emVk.has(ev.code)) return; emVk.delete(ev.code);
+  ev.preventDefault(); mandar({t:'k', a:'up', vk: vkDe(ev.code)});
+}
+document.addEventListener('keydown', teclaDown);
+document.addEventListener('keyup', teclaUp);
+addEventListener('blur', () => { for (const c of emVk) mandar({t:'k', a:'up', vk: vkDe(c)}); emVk.clear(); });
+// Ctrl+V: o texto copiado NESTE aparelho vai para a area de transferencia do PC e cola-se la
+document.addEventListener('paste', (ev) => {
+  if (!paraNos(ev)) return;
+  const s = ev.clipboardData && ev.clipboardData.getData('text/plain');
+  if (!s) return; // sem texto: o temporizador manda o Ctrl+V normal
+  clearTimeout(colaPendente); colaPendente = null;
+  ev.preventDefault();
+  for (const c of [...emVk]) if (/Control|Meta/.test(c)) { mandar({t:'k', a:'up', vk: vkDe(c)}); emVk.delete(c); }
+  mandar({t:'v', s});
+});
+// Ctrl+C / Ctrl+X vao para a app (acima); o texto copiado no PC chega em {"clip": ...}
+const toast = $('toast');
+let toastT = null;
+function mostrarToast(html, ms) { toast.innerHTML = html; toast.classList.add('ver'); clearTimeout(toastT); toastT = setTimeout(() => toast.classList.remove('ver'), ms || 2200); }
+let clipPendente = '';
+async function copiarAqui(s) {
+  try { await navigator.clipboard.writeText(s); mostrarToast('Copiado para este aparelho'); return; } catch (e) {}
+  // iPhone/Safari so deixam copiar depois de um toque: botao
+  clipPendente = s;
+  mostrarToast('Copiaste texto na app. <button id="bCopiarAqui">Copiar aqui</button>', 8000);
+  $('bCopiarAqui').onclick = async () => {
+    try { await navigator.clipboard.writeText(clipPendente); mostrarToast('Copiado para este aparelho'); }
+    catch (e) { const t = document.createElement('textarea'); t.value = clipPendente; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); mostrarToast('Copiado para este aparelho'); }
+  };
+}
+
+// teclado do telemovel: a caixa escondida guarda o que se escreve e manda so a diferenca
+// (assim o corretor, a previsao e o escrever deslizando nao repetem letras). Comeca com 3
+// caracteres invisiveis para o apagar funcionar mesmo com a caixa "vazia".
+const SENT = '​​​';
+let antes = SENT;
+function repor() { escrita.value = SENT; antes = SENT; try { escrita.setSelectionRange(SENT.length, SENT.length); } catch (e) {} }
+$('bTeclado').onclick = () => { repor(); escrita.focus(); };
+escrita.addEventListener('input', () => {
+  const v = escrita.value;
+  let k = 0; while (k < v.length && k < antes.length && v[k] === antes[k]) k++;
+  const apagar = antes.length - k, novo = v.slice(k);
+  for (let i = 0; i < apagar; i++) { mandar({t:'k', a:'down', vk:8}); mandar({t:'k', a:'up', vk:8}); }
+  if (novo) mandar({t:'c', s: novo.replace(/​/g, '')});
+  antes = v;
+  // caixa "gasta" (apagou-se o inicio ou ficou grande): recomecar, sem estragar uma palavra a meio
+  if (!v.startsWith(SENT) || (v.length > 300 && /\s$/.test(v))) repor();
+});
+escrita.addEventListener('keydown', (ev) => {
+  const vk = {Enter:13, Tab:9, Escape:27, ArrowLeft:37, ArrowUp:38, ArrowRight:39, ArrowDown:40}[ev.key];
+  if (vk && !ev.isComposing) { ev.preventDefault(); mandar({t:'k', a:'down', vk}); mandar({t:'k', a:'up', vk}); if (vk === 13) repor(); }
+});
+escrita.addEventListener('blur', () => { antes = escrita.value; });
+// botao Colar: o texto copiado neste aparelho vai para a app (com mudancas de linha)
+$('bColar').onclick = async () => {
+  let s = '';
+  try { s = await navigator.clipboard.readText(); } catch (e) {}
+  if (!s) s = prompt('Cola aqui o texto para pôr na app:') || '';
+  if (s) mandar({t:'v', s});
+  tela.focus();
+};
+
+// ---- microfone deste aparelho -> app (precisa do cabo virtual no PC; sem ele o botao nao aparece)
+let mic = null; // {stream, ctx, no}
+const bMic = $('bMic');
+async function ligarMic() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1}});
+    const C = window.AudioContext || window.webkitAudioContext;
+    let ctx; try { ctx = new C({sampleRate: 48000}); } catch (e) { ctx = new C(); }
+    const src = ctx.createMediaStreamSource(stream);
+    const no = ctx.createScriptProcessor(1024, 1, 1);
+    const passo = ctx.sampleRate / 48000; let pos = 0;
+    no.onaudioprocess = (e) => {
+      const d = e.inputBuffer.getChannelData(0);
+      // para 48 kHz (o Safari as vezes da 44,1 kHz)
+      const n = Math.floor((d.length - pos) / passo);
+      const out = new DataView(new ArrayBuffer(1 + n * 2)); out.setUint8(0, 77); // 'M'
+      for (let i = 0; i < n; i++) { const s = Math.max(-1, Math.min(1, d[Math.floor(pos + i * passo)] || 0)); out.setInt16(1 + i * 2, s * 32767, true); }
+      pos = pos + n * passo - d.length;
+      if (ws && ws.readyState === 1 && ws.bufferedAmount < 256 * 1024) ws.send(out.buffer);
+    };
+    src.connect(no); no.connect(ctx.destination); // (o no nao produz som, so precisa de estar ligado)
+    mic = {stream, ctx, no};
+    bMic.classList.add('ativo'); bMic.title = 'Microfone: a enviar para a app (tocar para desligar)';
+    mostrarToast('Microfone ligado: a app ouve-te');
+  } catch (e) {
+    mostrarToast('Não consegui usar o microfone: ' + (e.name === 'NotAllowedError' ? 'sem autorização no browser' : e.message), 5000);
+  }
+}
+function desligarMic() {
+  if (!mic) return;
+  mic.stream.getTracks().forEach((t) => t.stop()); try { mic.no.disconnect(); mic.ctx.close(); } catch (e) {}
+  mic = null; bMic.classList.remove('ativo'); bMic.title = 'Microfone: desligado';
+}
+bMic.onclick = () => { if (mic) desligarMic(); else ligarMic(); };
+
+// ---- camara deste aparelho -> app (no PC aparece como "OBS Virtual Camera"; sem o OBS o botao nao aparece)
+// Manda JPEG 1280x720 (com barras pretas se a camara estiver ao alto), 'C' + bytes.
+let cam = null; // {stream, timer}
+let camFrente = true;
+const bCam = $('bCam'), camVer = $('camVer');
+const camTela = document.createElement('canvas'); camTela.width = 1280; camTela.height = 720;
+const camCtx = camTela.getContext('2d');
+async function ligarCam() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: camFrente ? 'user' : 'environment', width: {ideal: 1280}, height: {ideal: 720}, frameRate: {ideal: 30}}});
+    if (cam) { cam.stream.getTracks().forEach((t) => t.stop()); clearInterval(cam.timer); }
+    camVer.srcObject = stream; camVer.style.display = 'block';
+    camVer.classList.toggle('espelho', camFrente);
+    try { await camVer.play(); } catch (e) {}
+    const leve = def.qual === 'leve';
+    const q = leve ? 0.55 : 0.72;
+    let aEnviar = false;
+    const timer = setInterval(() => {
+      if (aEnviar || !ws || ws.readyState !== 1 || ws.bufferedAmount > 512 * 1024) return;
+      const vw = camVer.videoWidth, vh = camVer.videoHeight;
+      if (!vw || !vh) return;
+      // caber em 1280x720 sem cortar
+      const e = Math.min(1280 / vw, 720 / vh), w = vw * e, h = vh * e;
+      camCtx.fillStyle = '#000'; camCtx.fillRect(0, 0, 1280, 720);
+      camCtx.drawImage(camVer, (1280 - w) / 2, (720 - h) / 2, w, h);
+      aEnviar = true;
+      camTela.toBlob(async (b) => {
+        try {
+          if (b && ws && ws.readyState === 1) {
+            const d = new Uint8Array(await b.arrayBuffer());
+            const out = new Uint8Array(1 + d.length); out[0] = 67; out.set(d, 1); // 'C'
+            ws.send(out.buffer);
+          }
+        } finally { aEnviar = false; }
+      }, 'image/jpeg', q);
+    }, leve ? 80 : 40);
+    cam = {stream, timer};
+    bCam.classList.add('ativo'); bCam.title = 'Câmara: a enviar para a app (tocar para desligar)';
+    mostrarToast('Câmara ligada: na app escolhe "OBS Virtual Camera"', 5000);
+  } catch (e) {
+    mostrarToast('Não consegui usar a câmara: ' + (e.name === 'NotAllowedError' ? 'sem autorização no browser' : e.message), 5000);
+  }
+}
+function desligarCam() {
+  if (!cam) return;
+  cam.stream.getTracks().forEach((t) => t.stop()); clearInterval(cam.timer);
+  cam = null; camVer.srcObject = null; camVer.style.display = 'none';
+  bCam.classList.remove('ativo'); bCam.title = 'Câmara: desligada';
+}
+bCam.onclick = () => { if (cam) desligarCam(); else ligarCam(); };
+// tocar na pre-visualizacao: trocar entre a camara da frente e a de tras
+camVer.onclick = () => { camFrente = !camFrente; ligarCam(); };
+
+// ---- ficheiros: deste aparelho -> Transferencias do PC, e do PC -> este aparelho
+// A chave vai no cabecalho x-chave; para descarregar pede-se uma senha de uso unico.
+const escH = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const tamH = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : b < 1073741824 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1073741824).toFixed(2) + ' GB';
+const quandoH = (s) => {
+  const d = new Date(s * 1000), hoje = new Date();
+  return d.toDateString() === hoje.toDateString() ? d.toLocaleTimeString('pt-PT', {hour: '2-digit', minute: '2-digit'}) : d.toLocaleDateString('pt-PT', {day: '2-digit', month: '2-digit'});
+};
+const fichLista = $('fichLista');
+function abrirFich(abrir) {
+  const ab = abrir === undefined ? !document.body.classList.contains('fich') : abrir;
+  document.body.classList.toggle('fich', ab);
+  if (ab) { document.body.classList.remove('painel'); carregarLista(); }
+}
+$('bFich').onclick = () => abrirFich();
+$('fichFechar').onclick = () => abrirFich(false);
+$('fichAtualizar').onclick = () => carregarLista();
+tela.addEventListener('pointerdown', () => document.body.classList.remove('fich'), true);
+async function carregarLista() {
+  fichLista.innerHTML = '<div class="nota">A ler o PC…</div>';
+  try {
+    const r = await fetch('/lista', {headers: {'x-chave': chave}, cache: 'no-store'});
+    if (!r.ok) throw new Error('erro ' + r.status);
+    const v = await r.json();
+    fichLista.innerHTML = '';
+    for (const [id, titulo] of [['t', 'Transferências'], ['a', 'Ambiente de trabalho']]) {
+      const daqui = v.filter((f) => f.pasta === id);
+      const p = document.createElement('p'); p.textContent = titulo; p.style.cssText = 'margin:12px 0 4px;font-size:11px;color:var(--fraco)';
+      fichLista.appendChild(p);
+      if (!daqui.length) { const n = document.createElement('div'); n.className = 'nota'; n.textContent = 'Vazio.'; fichLista.appendChild(n); continue; }
+      for (const f of daqui) {
+        const b = document.createElement('button'); b.className = 'fl'; b.title = 'Descarregar ' + f.nome;
+        b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg><span class="n">' + escH(f.nome) + '</span><span class="t">' + tamH(f.bytes) + '<br>' + quandoH(f.quando) + '</span>';
+        b.onclick = () => descarregar(f);
+        fichLista.appendChild(b);
+      }
+    }
+  } catch (e) {
+    fichLista.innerHTML = '<div class="nota">Não consegui ler os ficheiros do PC (' + escH(e.message) + ').</div>';
+  }
+}
+async function descarregar(f) {
+  try {
+    const r = await fetch('/pedir', {method: 'POST', headers: {'x-chave': chave, 'content-type': 'application/json'}, body: JSON.stringify({pasta: f.pasta, nome: f.nome})});
+    if (!r.ok) throw new Error(r.status === 404 ? 'o ficheiro já não existe' : 'erro ' + r.status);
+    const {k} = await r.json();
+    const a = document.createElement('a'); a.href = '/descarregar?k=' + encodeURIComponent(k); a.download = f.nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    mostrarToast('A descarregar ' + escH(f.nome), 3000);
+  } catch (e) {
+    mostrarToast('Não consegui descarregar: ' + escH(e.message), 4000);
+  }
+}
+function enviarUm(f) {
+  return new Promise((ok) => {
+    const x = new XMLHttpRequest();
+    x.open('POST', '/enviar?nome=' + encodeURIComponent(f.name));
+    x.setRequestHeader('x-chave', chave);
+    x.upload.onprogress = (e) => { if (e.lengthComputable) mostrarToast('A enviar ' + escH(f.name) + '… ' + Math.round(e.loaded / e.total * 100) + '%', 60000); };
+    x.onload = () => {
+      if (x.status === 200) { let n = f.name; try { n = JSON.parse(x.responseText).nome; } catch (e) {} ok(n); }
+      else { mostrarToast('Falhou o envio de ' + escH(f.name) + ': ' + escH(x.responseText || x.status), 5000); ok(null); }
+    };
+    x.onerror = () => { mostrarToast('Falhou o envio de ' + escH(f.name) + ' (ligação caiu).', 5000); ok(null); };
+    x.send(f);
+  });
+}
+async function enviarFicheiros(lista) {
+  const fs = [...lista].filter((f) => f.size > 0 || f.type);
+  if (!fs.length) { mostrarToast('Só dá para enviar ficheiros (não pastas).', 4000); return; }
+  const feitos = [];
+  for (const f of fs) { const n = await enviarUm(f); if (n) feitos.push(n); }
+  if (feitos.length) mostrarToast(feitos.length === 1 ? 'Guardado nas Transferências do PC: ' + escH(feitos[0]) : feitos.length + ' ficheiros guardados nas Transferências do PC', 4500);
+  if (document.body.classList.contains('fich')) carregarLista();
+}
+const fichEscolher = $('fichEscolher');
+$('bEnviar').onclick = () => fichEscolher.click();
+fichEscolher.onchange = () => { if (fichEscolher.files.length) enviarFicheiros(fichEscolher.files); fichEscolher.value = ''; };
+// arrastar ficheiros para cima da pagina
+const largar = $('largar');
+const temFicheiros = (e) => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+let arrastos = 0;
+addEventListener('dragenter', (e) => { if (!temFicheiros(e)) return; e.preventDefault(); arrastos++; largar.classList.add('ver'); });
+addEventListener('dragover', (e) => { if (!temFicheiros(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+addEventListener('dragleave', (e) => { if (!temFicheiros(e)) return; if (--arrastos <= 0) { arrastos = 0; largar.classList.remove('ver'); } });
+addEventListener('drop', (e) => { if (!temFicheiros(e)) return; e.preventDefault(); arrastos = 0; largar.classList.remove('ver'); enviarFicheiros(e.dataTransfer.files); });
+
+$('bAjustar').onclick = () => {
+  const dpr = devicePixelRatio || 1;
+  mandar({t:'r', w: Math.round(tela.clientWidth * (movel ? 1 : dpr)), h: Math.round(tela.clientHeight * (movel ? 1 : dpr))});
+};
+$('bMax').onclick = () => mandar({t:'max'});
+// ecra inteiro: nao ha janela para ajustar nem maximizar
+if (APP === 'ecra') { $('bAjustar').style.display = 'none'; $('bMax').style.display = 'none'; }
+
+// fechar o separador fecha a app no PC (o PC espera 3 s, para um recarregar nao a fechar)
+addEventListener('pagehide', (ev) => {
+  if (ev.persisted || !chave) return;
+  mandar({t: 'sair'}); // pela propria ligacao
+  try { navigator.sendBeacon('/sair?app=' + encodeURIComponent(APP) + '&t=' + encodeURIComponent(chave), ''); } catch (e) {}
+});
+aplicar();
+if (!chave) { aviso('Falta a chave: abre pela homepage.'); } else { suporteH264().then((ok) => { h264ok = ok; ligar(); }); }
+tela.focus();
+</script>
+</body>
+</html>

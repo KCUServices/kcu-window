@@ -1,0 +1,19 @@
+{
+  "porta": 3095,
+  "chave": "troca-isto-por-uma-chave-longa-e-aleatoria",
+  "permitidos": [],
+  "inicio": null,
+  "ffmpeg": null,
+  "apps": {
+    "obsidian": {
+      "nome": "Obsidian",
+      "exe": "C:\Users\<tu>\AppData\Local\Programs\Obsidian\Obsidian.exe",
+      "processo": "Obsidian.exe"
+    },
+    "notepad": {
+      "nome": "Bloco de Notas",
+      "exe": "C:\Windows\System32\notepad.exe",
+      "processo": "notepad.exe"
+    }
+  }
+}
