@@ -7,12 +7,12 @@
   "apps": {
     "obsidian": {
       "nome": "Obsidian",
-      "exe": "C:\Users\<tu>\AppData\Local\Programs\Obsidian\Obsidian.exe",
+      "exe": "C:\\Users\\<tu>\\AppData\\Local\\Programs\\Obsidian\\Obsidian.exe",
       "processo": "Obsidian.exe"
     },
     "notepad": {
       "nome": "Bloco de Notas",
-      "exe": "C:\Windows\System32\notepad.exe",
+      "exe": "C:\\Windows\\System32\\notepad.exe",
       "processo": "notepad.exe"
     }
   }
