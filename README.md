@@ -72,6 +72,7 @@ flowchart LR
 - **Vídeo fluido.** Com uma placa NVIDIA e o `ffmpeg`, a imagem vai em H.264 (até 60 FPS), descodificada no browser com WebCodecs. Sem isso, usa JPEG.
 - **Feito para telemóvel também.** Um toque é um clique, um toque longo é o botão direito, e a pinça com dois dedos aproxima a imagem (até 6×). Tem um botão para teclado e outro para colar texto.
 - **Ecrã inteiro.** `/?app=ecra` mostra o monitor principal todo (com som de todo o PC), em vez de uma app. Não abre nem fecha nada. `"ecra": false` na config desliga-o.
+- **Pedidos de administrador.** No ecrã inteiro, os pedidos de administrador do Windows (UAC), o ecrã de bloqueio e o Ctrl+Alt+Del aparecem na página e aceitas ou recusas com o rato e o teclado. É opcional: ver [Pedidos de administrador](#pedidos-de-administrador-uac).
 - **Ficheiros.** Arrasta ficheiros para cima da página (ou usa o botão Ficheiros → Enviar) e ficam nas Transferências do PC. No mesmo painel aparecem os ficheiros das Transferências e do Ambiente de trabalho do PC; toca num para o descarregar. A chave vai num cabeçalho, e cada descarga usa uma senha de uso único que dura 2 minutos.
 - **Câmara do aparelho na app.** Com o [OBS Studio](https://obsproject.com) instalado no PC (não precisa de estar aberto), o botão da câmara manda a câmara do telemóvel/portátil para a "OBS Virtual Camera": na app (Chrome, Teams, Zoom, Discord…) escolhe essa webcam. Liga a câmara na página **antes** de a escolher na app. Toca na pré-visualização para trocar entre a câmara da frente e a de trás. `"camara": false` na config esconde o botão.
 - **Página personalizável.** A página mostra o ícone real da app e um contador de FPS. Há um painel lateral para mudar a cor, o fundo, o ajuste da janela e a qualidade. As escolhas ficam guardadas em cada aparelho.
@@ -110,6 +111,29 @@ cargo build --release
 5. Abre o HTTPS, por exemplo com Tailscale: `tailscale serve --bg --https=3095 http://127.0.0.1:3095`
 6. Abre `https://<o-teu-pc>:3095/?app=obsidian#t=<a-tua-chave>`. A chave vai depois do `#`, por isso nunca chega aos registos de servidores. A página guarda-a no separador.
 
+### Pedidos de administrador (UAC)
+
+O Windows mostra os pedidos de administrador, o ecrã de bloqueio e o Ctrl+Alt+Del num ambiente à parte (o "ambiente seguro"), onde só a conta SYSTEM entra. Sem este passo, o ecrã inteiro fica parado enquanto um destes ecrãs está aberto. Ferramentas como o Chrome Remote Desktop resolvem isto com um serviço do sistema. O KCU Window faz o mesmo com o próprio `.exe`:
+
+- `kcu-janelas.exe --guarda <config>` corre como SYSTEM (tarefa agendada ao arrancar o PC) e mantém um ajudante vivo na tua sessão.
+- O ajudante (`--seguro`) só escuta em `127.0.0.1:3096`, pede a mesma chave e só mostra a imagem e aceita rato e teclado **enquanto** o ambiente seguro está aberto. No ambiente normal recusa tudo.
+- A página não muda: quando aparece um pedido, a imagem passa a vir do ajudante e volta ao normal sozinha.
+
+Numa janela do PowerShell **como administrador**:
+
+```powershell
+$a = New-ScheduledTaskAction -Execute 'C:\kcu-janelas\kcu-janelas.exe' -Argument '--guarda C:\kcu-janelas\kcu-janelas.json' -WorkingDirectory 'C:\kcu-janelas'
+$t = New-ScheduledTaskTrigger -AtStartup
+$p = New-ScheduledTaskPrincipal -UserId 'NT AUTHORITY\SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+$s = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName 'KCU-Janelas-Seguro' -Action $a -Trigger $t -Principal $p -Settings $s
+Start-ScheduledTask 'KCU-Janelas-Seguro'
+```
+
+Para desligar: `Unregister-ScheduledTask KCU-Janelas-Seguro -Confirm:$false` e fecha os `kcu-janelas.exe` que ficarem a correr.
+
+**Importante:** esta tarefa corre o `.exe` como SYSTEM, por isso a pasta dele só pode ser alterada por administradores (por exemplo `C:\Program Files\...`, ou retira a escrita aos utilizadores normais). Se uma conta normal puder trocar o `.exe`, passa a ter SYSTEM. Protege também o ficheiro da chave: quem a souber pode aprovar pedidos de administrador.
+
 ## Configuração (`kcu-janelas.json`)
 
 ```json
@@ -145,6 +169,7 @@ A config fica ao lado do `.exe`, ou no caminho da variável de ambiente `KCU_JAN
 
 - Só escuta em `127.0.0.1`. Quem chega de fora passa pelo teu proxy HTTPS, tem de estar em `permitidos` e tem de saber a `chave`.
 - Quem entra controla a app como se estivesse sentado ao PC. Usa uma chave forte e não abras isto à internet aberta: prefere uma rede privada como o Tailscale.
+- Com os [pedidos de administrador](#pedidos-de-administrador-uac) ligados, quem tem a chave também aceita pedidos de administrador e escreve no ecrã de bloqueio, como no Chrome Remote Desktop com o PIN. O ajudante SYSTEM só escuta em `127.0.0.1` e só atua enquanto o ambiente seguro está aberto.
 
 ## Notas
 

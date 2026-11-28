@@ -150,6 +150,16 @@ async fn main() {
     std::panic::set_hook(Box::new(|i| {
         nota(&format!("PANICO: {i} | {}", std::backtrace::Backtrace::force_capture()).replace('\n', " / "));
     }));
+    // `--guarda [config]`: tarefa SYSTEM no arranque; o caminho da config passa ao ajudante pelo ambiente
+    let args: Vec<String> = std::env::args().collect();
+    let modo = args.get(1).cloned().unwrap_or_default();
+    if modo == "--guarda" {
+        if let Some(c) = args.get(2) {
+            std::env::set_var("KCU_JANELAS_CONFIG", c);
+        }
+        guarda();
+        return;
+    }
     let cfg: Config = match serde_json::from_value(ler_json(&caminho_config().to_string_lossy())) {
         Ok(c) => c,
         Err(err) => {
@@ -166,6 +176,11 @@ async fn main() {
         nota("sem chave (minimo 16 caracteres) na config; a sair");
         return;
     }
+    if modo == "--seguro" {
+        ajudante(chave);
+        return;
+    }
+    let _ = CHAVE.set(chave.clone());
     let porta = cfg.porta;
     let estado = Arc::new(Estado { cfg, chave });
     let app = Router::new()
@@ -1443,9 +1458,14 @@ fn fechar_executar() {
 
 struct Codificador {
     filho: std::process::Child,
-    entrada: Option<std::process::ChildStdin>,
+    // as imagens vao ao ffmpeg por um fio proprio: se o ffmpeg (NVENC) encravar, a captura nao
+    // fica presa no write e da para passar para JPEG
+    entrada: Option<std::sync::mpsc::SyncSender<Vec<u8>>>,
     w: u32,
     h: u32,
+    criado: Instant,
+    // ms desde `criado` da ultima imagem H.264 que saiu do ffmpeg (0 = ainda nenhuma)
+    saiu: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl Drop for Codificador {
@@ -1475,28 +1495,53 @@ impl Codificador {
             ])
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null())
+            .stderr(
+                std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(r"D:\kcu\kcu-janelas-ffmpeg.log")
+                    .map(std::process::Stdio::from)
+                    .unwrap_or_else(|_| std::process::Stdio::null()),
+            )
             .creation_flags(0x0800_0000)
             .spawn()
             .map_err(|e| nota(&format!("ffmpeg nao arrancou: {e}")))
             .ok()?;
         let saida = c.stdout.take()?;
-        let entrada = c.stdin.take();
-        std::thread::spawn(move || ler_h264(saida, tx));
-        Some(Self { filho: c, entrada, w, h })
+        let mut stdin = c.stdin.take()?;
+        let criado = Instant::now();
+        let saiu = Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let s2 = saiu.clone();
+        std::thread::spawn(move || ler_h264(saida, tx, criado, s2));
+        let (etx, erx) = std::sync::mpsc::sync_channel::<Vec<u8>>(1);
+        std::thread::spawn(move || {
+            use std::io::Write as _;
+            while let Ok(px) = erx.recv() {
+                if stdin.write_all(&px).and_then(|_| stdin.flush()).is_err() {
+                    break;
+                }
+            }
+        });
+        Some(Self { filho: c, entrada: Some(etx), w, h, criado, saiu })
     }
 
-    fn imagem(&mut self, px: &[u8]) -> bool {
-        use std::io::Write as _;
-        match self.entrada.as_mut() {
-            Some(e) => e.write_all(px).and_then(|_| e.flush()).is_ok(),
+    /// false = o ffmpeg morreu. Com o ffmpeg ocupado a imagem e deitada fora (vem outra a seguir).
+    fn imagem(&mut self, px: Vec<u8>) -> bool {
+        match self.entrada.as_ref() {
+            Some(e) => !matches!(e.try_send(px), Err(std::sync::mpsc::TrySendError::Disconnected(_))),
             None => false,
         }
+    }
+
+    /// Sem H.264 a sair ha mais de 5 s (desde o arranque ou desde a ultima imagem).
+    fn encravado(&self) -> bool {
+        let ultima = self.saiu.load(std::sync::atomic::Ordering::Relaxed);
+        self.criado.elapsed().as_millis() as u64 > ultima + 5000
     }
 }
 
 /// Le o H.264 do ffmpeg e manda cada access unit (de AUD a AUD) inteiro.
-fn ler_h264(mut r: std::process::ChildStdout, tx: tokio::sync::mpsc::Sender<Saida>) {
+fn ler_h264(mut r: std::process::ChildStdout, tx: tokio::sync::mpsc::Sender<Saida>, criado: Instant, saiu: Arc<std::sync::atomic::AtomicU64>) {
     use std::io::Read as _;
     const AUD: [u8; 5] = [0, 0, 0, 1, 9];
     let mut buf: Vec<u8> = Vec::new();
@@ -1512,6 +1557,7 @@ fn ler_h264(mut r: std::process::ChildStdout, tx: tokio::sync::mpsc::Sender<Said
             let (Some(a), Some(b)) = (it.next(), it.next()) else { break };
             let au = buf[a..b].to_vec();
             buf.drain(..b);
+            saiu.store(criado.elapsed().as_millis().max(1) as u64, std::sync::atomic::Ordering::Relaxed);
             if tx.blocking_send(Saida::H264(au)).is_err() {
                 return;
             }
@@ -2046,6 +2092,7 @@ struct Emissor {
     repeticoes: u32,
     ultima: u64,
     enviada: Instant,
+    falhas_h264: u32,
 }
 
 impl Emissor {
@@ -2060,6 +2107,7 @@ impl Emissor {
             repeticoes: 0,
             ultima: 0,
             enviada: Instant::now() - Duration::from_secs(10),
+            falhas_h264: 0,
         }
     }
 
@@ -2092,13 +2140,26 @@ impl Emissor {
                 if self.cod.as_ref().map(|c| c.w != w || c.h != hh).unwrap_or(true) {
                     self.cod = Codificador::novo(vf, w, hh, *kbps, tx.clone());
                 }
-                let ok = self.cod.as_mut().map(|c| c.imagem(&px)).unwrap_or(false);
+                let ok = self.cod.as_mut().map(|c| c.imagem(px.clone())).unwrap_or(false);
                 if !ok {
+                    // morreu sem nunca dar uma imagem: nao adianta relancar a cada imagem
+                    if self.cod.as_ref().map(|c| c.saiu.load(std::sync::atomic::Ordering::Relaxed) == 0).unwrap_or(true) {
+                        self.falhas_h264 += 1;
+                    }
                     self.cod = None;
                 }
                 self.alimentado = Instant::now();
                 self.enviada = Instant::now();
                 self.ultimo_px = Some((w, hh, px));
+            }
+            // o ffmpeg/NVENC as vezes encrava sem soltar nada (a pagina ficava em "A ligar ao PC"
+            // para sempre): passa-se esta ligacao para JPEG, que funciona sempre
+            if self.cod.as_ref().map(|c| c.encravado()).unwrap_or(false) || self.falhas_h264 >= 3 {
+                nota("H.264 sem imagens (ffmpeg encravado ou a morrer): a passar esta ligacao para JPEG");
+                self.cod = None;
+                self.video = None;
+                self.enviada = Instant::now() - Duration::from_secs(10);
+                let _ = tx.blocking_send(Saida::Texto("{\"video\":\"jpeg\"}".into()));
             }
             !tx.is_closed()
         } else if let Some((w, hh, px)) = imagem {
@@ -2161,6 +2222,7 @@ fn ciclo_ecra(tx: tokio::sync::mpsc::Sender<Saida>, parar: Arc<Mutex<bool>>, cmd
     let mut area_n = numero_area();
     let mut area_em = Instant::now();
     let mut primeira = true;
+    let mut no_seguro = false;
     loop {
         if parado(&parar) || tx.is_closed() {
             break;
@@ -2176,8 +2238,15 @@ fn ciclo_ecra(tx: tokio::sync::mpsc::Sender<Saida>, parar: Arc<Mutex<bool>>, cmd
                 intervalo = Duration::from_millis(1000 / n.clamp(5, 60));
             }
         }
+        let seguro = ambiente_seguro();
+        if seguro != no_seguro {
+            no_seguro = seguro;
+            nota(if seguro { "ecra inteiro: ambiente seguro (UAC/bloqueio): imagens pelo ajudante" } else { "ecra inteiro: de volta ao ambiente normal" });
+        }
         let mut imagem = None;
-        if wgc.is_some() {
+        if seguro {
+            imagem = imagem_segura();
+        } else if wgc.is_some() {
             let q = quadro.lock().unwrap_or_else(|e| e.into_inner()).clone();
             match q {
                 Some((w, hh, px, n)) => {
@@ -2209,15 +2278,247 @@ fn ciclo_ecra(tx: tokio::sync::mpsc::Sender<Saida>, parar: Arc<Mutex<bool>>, cmd
         if !em.passo(imagem, &tx) {
             break;
         }
+        // no ambiente seguro cada imagem atravessa o ajudante em bruto: 10/s chegam para um pedido de admin
+        let alvo = if seguro { intervalo.max(Duration::from_millis(100)) } else { intervalo };
         let gasto = t0.elapsed();
-        if gasto < intervalo {
-            std::thread::sleep(intervalo - gasto);
+        if gasto < alvo {
+            std::thread::sleep(alvo - gasto);
         }
     }
     if let Some(c) = wgc.take() {
         let _ = c.stop();
     }
     nota("ecra inteiro: sessao fechada");
+}
+
+// ---------------------------------------------------------------- ambiente seguro (pedidos de admin, ecra de bloqueio)
+//
+// O Windows mostra o UAC, o ecra de bloqueio e o Ctrl+Alt+Del no ambiente "Winlogon", onde so a
+// conta SYSTEM entra (como fazem o Chrome Remote Desktop e o RustDesk instalados):
+// - `--guarda [config]`: tarefa SYSTEM no arranque (sessao 0). Lanca `--seguro` na sessao da
+//   consola com o proprio token SYSTEM e relanca-o se morrer ou se a sessao mudar.
+// - `--seguro`: o ajudante. So escuta em 127.0.0.1:PORTA_SEGURO, pede a chave, e SO mostra/mexe
+//   enquanto o ambiente de entrada NAO for o normal ("Default").
+// - este processo (o do utilizador, modo ecra) pede-lhe as imagens e passa-lhe o rato/teclado.
+
+use windows::Win32::System::StationsAndDesktops::*;
+
+const PORTA_SEGURO: u16 = 3096;
+static CHAVE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+static AJUDANTE: Mutex<Option<std::net::TcpStream>> = Mutex::new(None);
+
+fn nome_do_ambiente(d: HDESK) -> Option<String> {
+    let mut b = [0u16; 64];
+    let mut n = 0u32;
+    unsafe {
+        GetUserObjectInformationW(HANDLE(d.0), UOI_NAME, Some(b.as_mut_ptr() as *mut c_void), (b.len() * 2) as u32, Some(&mut n)).ok()?;
+    }
+    let s = String::from_utf16_lossy(&b[..(n as usize / 2).min(b.len())]);
+    Some(s.trim_end_matches('\0').to_string())
+}
+
+/// O ambiente que recebe o rato/teclado nao e o normal. Do lado do utilizador, o Winlogon nem abre.
+fn ambiente_seguro() -> bool {
+    unsafe {
+        let Ok(d) = OpenInputDesktop(DESKTOP_CONTROL_FLAGS(0), false, DESKTOP_READOBJECTS) else { return true };
+        let n = nome_do_ambiente(d);
+        let _ = CloseDesktop(d);
+        n.map_or(true, |n| !n.eq_ignore_ascii_case("default"))
+    }
+}
+
+/// Um pedido ao ajudante: 'F' devolve uma imagem (w, h, BGRA); 'I' + evento JSON nao devolve nada.
+/// Uma ligacao so, reaberta se cair; sem ajudante (tarefa nao instalada) devolve None depressa.
+fn ao_ajudante(tipo: u8, dados: &[u8]) -> Option<Vec<u8>> {
+    use std::io::Read;
+    let mut g = AJUDANTE.lock().unwrap_or_else(|e| e.into_inner());
+    for _ in 0..2 {
+        if g.is_none() {
+            let mut s = std::net::TcpStream::connect_timeout(&(std::net::Ipv4Addr::LOCALHOST, PORTA_SEGURO).into(), Duration::from_millis(300)).ok()?;
+            let _ = s.set_read_timeout(Some(Duration::from_secs(3)));
+            let _ = s.set_nodelay(true);
+            let c = CHAVE.get()?;
+            s.write_all(&(c.len() as u32).to_le_bytes()).ok()?;
+            s.write_all(c.as_bytes()).ok()?;
+            *g = Some(s);
+        }
+        let s = g.as_mut()?;
+        let r = (|| -> std::io::Result<Vec<u8>> {
+            s.write_all(&[tipo])?;
+            s.write_all(&(dados.len() as u32).to_le_bytes())?;
+            s.write_all(dados)?;
+            if tipo != b'F' {
+                return Ok(Vec::new());
+            }
+            let mut n = [0u8; 4];
+            s.read_exact(&mut n)?;
+            let mut v = vec![0u8; u32::from_le_bytes(n) as usize];
+            s.read_exact(&mut v)?;
+            Ok(v)
+        })();
+        match r {
+            Ok(v) => return Some(v),
+            Err(_) => *g = None,
+        }
+    }
+    None
+}
+
+fn imagem_segura() -> Option<(u32, u32, Vec<u8>)> {
+    let mut v = ao_ajudante(b'F', &[])?;
+    if v.len() < 8 {
+        return None; // o ajudante recusou (ambiente normal) ou nao conseguiu copiar
+    }
+    let w = u32::from_le_bytes(v[0..4].try_into().ok()?);
+    let h = u32::from_le_bytes(v[4..8].try_into().ok()?);
+    let px = v.split_off(8);
+    (px.len() as u64 == w as u64 * h as u64 * 4).then_some((w, h, px))
+}
+
+/// Liga este fio ao ambiente de entrada atual (fecha o anterior) e devolve o nome dele.
+fn entrar_no_ambiente(atual: &mut Option<HDESK>) -> Option<String> {
+    unsafe {
+        let d = OpenInputDesktop(DESKTOP_CONTROL_FLAGS(0), false, DESKTOP_ACCESS_FLAGS(0x1000_0000)).ok()?; // GENERIC_ALL
+        if SetThreadDesktop(d).is_err() {
+            let _ = CloseDesktop(d);
+            return None;
+        }
+        if let Some(v) = atual.replace(d) {
+            let _ = CloseDesktop(v);
+        }
+        nome_do_ambiente(d)
+    }
+}
+
+fn ler_bloco(s: &mut std::net::TcpStream, max: usize) -> std::io::Result<Vec<u8>> {
+    use std::io::Read;
+    let mut n = [0u8; 4];
+    s.read_exact(&mut n)?;
+    let n = u32::from_le_bytes(n) as usize;
+    if n > max {
+        return Err(std::io::ErrorKind::InvalidData.into());
+    }
+    let mut v = vec![0u8; n];
+    s.read_exact(&mut v)?;
+    Ok(v)
+}
+
+fn atender_seguro(mut s: std::net::TcpStream, chave: &str) -> std::io::Result<()> {
+    use std::io::Read;
+    s.set_read_timeout(Some(Duration::from_secs(5)))?;
+    if ler_bloco(&mut s, 256)? != chave.as_bytes() {
+        nota("ajudante seguro: chave errada; ligacao recusada");
+        return Ok(());
+    }
+    s.set_read_timeout(None)?;
+    s.set_nodelay(true)?;
+    let mut atual = None;
+    loop {
+        let mut t = [0u8; 1];
+        s.read_exact(&mut t)?;
+        let dados = ler_bloco(&mut s, 64 * 1024)?;
+        let seguro = entrar_no_ambiente(&mut atual).is_some_and(|n| !n.eq_ignore_ascii_case("default"));
+        match t[0] {
+            b'F' => {
+                let mut v = Vec::new();
+                if let Some((w, h, px)) = capturar_ecra().filter(|_| seguro) {
+                    v.extend_from_slice(&w.to_le_bytes());
+                    v.extend_from_slice(&h.to_le_bytes());
+                    v.extend_from_slice(&px);
+                }
+                s.write_all(&(v.len() as u32).to_le_bytes())?;
+                s.write_all(&v)?;
+            }
+            b'I' if seguro => {
+                // so rato, teclas e texto: colar ("v") mexe na area de transferencia, que aqui nao existe
+                if let Ok(ev) = serde_json::from_slice::<Ev>(&dados) {
+                    if matches!(ev.t.as_str(), "m" | "k" | "c") {
+                        aplicar(HWND::default(), true, &ev);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// `--seguro`: corre como SYSTEM na sessao do utilizador (lancado pela guarda).
+fn ajudante(chave: String) {
+    let l = match std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, PORTA_SEGURO)) {
+        Ok(l) => l,
+        Err(e) => {
+            nota(&format!("ajudante seguro: porta {PORTA_SEGURO} ocupada ({e}); a sair"));
+            return;
+        }
+    };
+    nota(&format!("ajudante seguro: a escutar em 127.0.0.1:{PORTA_SEGURO}"));
+    for s in l.incoming().flatten() {
+        let c = chave.clone();
+        std::thread::spawn(move || {
+            let _ = atender_seguro(s, &c);
+        });
+    }
+}
+
+/// Lanca `<este exe> --seguro` na `sessao` com uma copia do token SYSTEM desta guarda.
+fn lancar_seguro(sessao: u32) -> Option<HANDLE> {
+    use windows::Win32::Security::*;
+    use windows::Win32::System::Threading::*;
+    let exe = std::env::current_exe().ok()?;
+    let mut linha: Vec<u16> = format!("\"{}\" --seguro", exe.display()).encode_utf16().chain([0]).collect();
+    let mut mesa: Vec<u16> = "winsta0\\default\0".encode_utf16().collect();
+    unsafe {
+        let mut eu = HANDLE::default();
+        OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &mut eu).ok()?;
+        let mut t = HANDLE::default();
+        let r = DuplicateTokenEx(eu, TOKEN_ALL_ACCESS, None, SecurityImpersonation, TokenPrimary, &mut t);
+        let _ = CloseHandle(eu);
+        r.ok()?;
+        let si = STARTUPINFOW {
+            cb: std::mem::size_of::<STARTUPINFOW>() as u32,
+            lpDesktop: windows::core::PWSTR(mesa.as_mut_ptr()),
+            ..Default::default()
+        };
+        let mut pi = PROCESS_INFORMATION::default();
+        let ok = SetTokenInformation(t, TokenSessionId, &sessao as *const u32 as *const c_void, 4).is_ok()
+            && CreateProcessAsUserW(t, windows::core::PCWSTR::null(), windows::core::PWSTR(linha.as_mut_ptr()), None, None, false, PROCESS_CREATION_FLAGS(0), None, windows::core::PCWSTR::null(), &si, &mut pi).is_ok();
+        let _ = CloseHandle(t);
+        if !ok {
+            nota(&format!("guarda: nao consegui lancar o ajudante na sessao {sessao}: {}", windows::core::Error::from_win32()));
+            return None;
+        }
+        let _ = CloseHandle(pi.hThread);
+        Some(pi.hProcess)
+    }
+}
+
+/// `--guarda`: mantem um ajudante vivo na sessao da consola.
+fn guarda() {
+    use windows::Win32::System::RemoteDesktop::WTSGetActiveConsoleSessionId;
+    use windows::Win32::System::Threading::{TerminateProcess, WaitForSingleObject};
+    nota("guarda do ambiente seguro: a comecar");
+    let mut filho: Option<(u32, HANDLE)> = None;
+    let mut falhas = 0u32;
+    loop {
+        let sessao = unsafe { WTSGetActiveConsoleSessionId() };
+        let vivo = filho.as_ref().is_some_and(|(s, h)| *s == sessao && unsafe { WaitForSingleObject(*h, 0) } == WAIT_TIMEOUT);
+        if vivo {
+            falhas = 0;
+        } else {
+            falhas += 1;
+            if let Some((_, h)) = filho.take() {
+                unsafe {
+                    let _ = TerminateProcess(h, 0);
+                    let _ = CloseHandle(h);
+                }
+            }
+            if sessao != u32::MAX && sessao != 0 {
+                filho = lancar_seguro(sessao).map(|h| (sessao, h));
+            }
+        }
+        // se o ajudante morre logo (ex.: porta ocupada), nao o relancar 30 vezes por minuto
+        std::thread::sleep(Duration::from_secs(if falhas > 3 { 60 } else { 2 }));
+    }
 }
 
 // ---------------------------------------------------------------- sessao
@@ -2566,6 +2867,10 @@ async fn sessao(s: WebSocket, a: App, largura: u32, qualidade: u8, video: Option
                 }
                 if ev.t == "fps" {
                     let _ = cmd_tx.send(format!("fps:{}", ev.d));
+                    continue;
+                }
+                if ecra && ambiente_seguro() {
+                    let _ = ao_ajudante(b'I', t.as_bytes());
                     continue;
                 }
                 let h = atual.load(Ordering::Relaxed);

@@ -1,6 +1,6 @@
 ﻿[package]
 name = "kcu-janelas"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Mostra a janela de uma app do Windows numa pagina web, com rato, teclado e toque."
 license = "PolyForm-Noncommercial-1.0.0"
@@ -33,6 +33,8 @@ features = [
   "Win32_System_Memory",
   "Win32_System_Com",
   "Win32_System_Registry",
+  "Win32_System_StationsAndDesktops",
+  "Win32_System_RemoteDesktop",
   "Win32_Security",
   "Win32_Security_Cryptography",
 ]
