@@ -1499,7 +1499,7 @@ impl Codificador {
                 std::fs::OpenOptions::new()
                     .create(true)
                     .append(true)
-                    .open(r"D:\kcu\kcu-janelas-ffmpeg.log")
+                    .open(pasta().join("kcu-janelas-ffmpeg.log"))
                     .map(std::process::Stdio::from)
                     .unwrap_or_else(|_| std::process::Stdio::null()),
             )
